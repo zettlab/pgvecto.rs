@@ -1,0 +1,39 @@
+# -*- mode: yaml -*-
+manifest:
+  version: 1.0
+
+automations:
+  ai_code_review:
+    on: [pr_created, pr_ready_for_review]
+    if:
+      - {{ not is.bot }}
+    run:
+      - action: code-review@v1
+        args:
+          guidelines: |
+            - 关注代码正确性、安全性、性能问题
+            - 检查是否有明显的逻辑错误或边界情况遗漏
+            - 关注资源泄露（未关闭的句柄、连接等）
+            - 给出简洁可执行的修改建议
+            - 对 Go 代码额外检查：error 处理是否完整、goroutine 泄露风险、context 传递
+
+  ai_pr_description:
+    on: [pr_created]
+    if:
+      - {{ not pr.draft }}
+      - {{ not is.bot }}
+    run:
+      - action: describe-changes@v1
+        args:
+          concat_mode: append
+
+  estimated_review_time:
+    on: [pr_created, commit]
+    if:
+      - {{ not pr.draft }}
+      - {{ not is.bot }}
+    run:
+      - action: add-label@v1
+        args:
+          label: "{{ calc.etr }} min review"
+          color: {{ colors.red if (calc.etr >= 20) else (colors.yellow if (calc.etr >= 5) else colors.green) }}
